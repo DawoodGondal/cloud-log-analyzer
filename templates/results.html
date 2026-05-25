@@ -4,27 +4,44 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Results</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: sans-serif; background: #f0f2f5; }
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; }
     nav { background: #4f46e5; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; }
     nav h1 { font-size: 18px; }
     nav a { color: white; text-decoration: none; font-size: 13px; background: rgba(255,255,255,0.2); padding: 6px 14px; border-radius: 6px; }
-    .container { max-width: 800px; margin: 40px auto; padding: 0 16px; display: grid; gap: 24px; }
-    .card { background: white; border-radius: 12px; padding: 28px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); }
-    h2 { color: #1a1a2e; margin-bottom: 4px; }
-    .sub { color: #666; font-size: 13px; margin-bottom: 20px; }
+    .container { max-width: 900px; margin: 36px auto; padding: 0 16px; display: grid; gap: 24px; }
+    .card { background: white; border-radius: 16px; padding: 28px; box-shadow: 0 2px 16px rgba(0,0,0,0.07); }
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; flex-wrap: wrap; gap: 8px; }
+    h2 { color: #1a1a2e; font-size: 17px; }
+    .sub { color: #6b7280; font-size: 13px; margin-bottom: 20px; }
+    .badge-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+    .badge { padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; }
+    .badge-purple { background: #ede9fe; color: #5b21b6; }
+    .badge-green  { background: #dcfce7; color: #166534; }
+    .badge-blue   { background: #dbeafe; color: #1e40af; }
+    .back-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; background: #4f46e5; color: white; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 500; }
+    .back-btn:hover { background: #4338ca; }
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 640px) { .charts-grid { grid-template-columns: 1fr; } }
+    .chart-box { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 16px rgba(0,0,0,0.07); }
+    .chart-box h3 { font-size: 15px; color: #1a1a2e; margin-bottom: 4px; }
+    .chart-box p { font-size: 12px; color: #9ca3af; margin-bottom: 16px; }
+    canvas { max-height: 260px; }
     table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; padding: 10px 12px; font-size: 12px; color: #888; border-bottom: 1px solid #eee; text-transform: uppercase; }
-    td { padding: 12px; font-size: 14px; border-bottom: 1px solid #f5f5f5; }
-    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
-    .badge-red { background: #fee2e2; color: #b91c1c; }
-    .badge-blue { background: #e0e7ff; color: #3730a3; }
-    .bar-wrap { background: #f3f4f6; border-radius: 4px; height: 10px; width: 100%; }
-    .bar { background: #4f46e5; height: 10px; border-radius: 4px; }
-    .bar-red { background: #ef4444; }
-    .empty { color: #999; font-size: 14px; padding: 12px 0; }
-    .back-btn { display: inline-block; padding: 10px 24px; background: #4f46e5; color: white; border-radius: 8px; text-decoration: none; font-size: 14px; }
+    th { text-align: left; padding: 10px 12px; font-size: 11px; color: #9ca3af; border-bottom: 1px solid #f3f4f6; text-transform: uppercase; letter-spacing: .04em; }
+    td { padding: 11px 12px; font-size: 13px; border-bottom: 1px solid #f9fafb; color: #374151; }
+    .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+    .pill-red  { background: #fee2e2; color: #b91c1c; }
+    .pill-blue { background: #e0e7ff; color: #3730a3; }
+    .bar-wrap { background: #f3f4f6; border-radius: 4px; height: 8px; width: 100%; }
+    .bar { height: 8px; border-radius: 4px; }
+    .bar-red  { background: #ef4444; }
+    .bar-blue { background: #4f46e5; }
+    .empty { color: #9ca3af; font-size: 14px; padding: 20px 0; text-align: center; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -32,64 +49,172 @@
     <h1>☁️ Cloud Log Analyzer</h1>
     <a href="/logout">Logout</a>
   </nav>
+
   <div class="container">
 
+    <!-- Summary card -->
     <div class="card">
-      <h2>MapReduce Analysis Complete</h2>
-      <p class="sub">File: <strong>{{ filename }}</strong> &nbsp;|&nbsp; Parallel processing via Split → Map → Shuffle → Reduce</p>
-      <a href="/dashboard" class="back-btn">← Upload Another File</a>
+      <div class="card-header">
+        <div>
+          <h2>MapReduce Analysis Complete</h2>
+          <p class="sub" style="margin-bottom:0">File: <strong>{{ filename }}</strong> &nbsp;·&nbsp; Split → Map → Shuffle → Reduce</p>
+        </div>
+        <a href="/dashboard" class="back-btn">← Upload Another</a>
+      </div>
+      <div class="badge-row" style="margin-top:16px">
+        <span class="badge badge-purple">{{ errors|length }} error type(s) detected</span>
+        <span class="badge badge-green">{{ traffic|length }} active hour(s)</span>
+        <span class="badge badge-blue">{{ traffic.values()|sum }} total requests</span>
+      </div>
     </div>
 
-    <!-- HTTP Error Codes -->
-    <div class="card">
-      <h2>HTTP Error Frequencies</h2>
-      <p class="sub">Critical error codes detected across all log lines</p>
-      {% if errors %}
-        {% set max_err = errors.values()|max %}
-        <table>
-          <tr><th>Error Code</th><th>Count</th><th>Distribution</th></tr>
-          {% for code, count in errors|dictsort(by='value', reverse=true) %}
-          <tr>
-            <td><span class="badge badge-red">HTTP {{ code }}</span></td>
-            <td>{{ count }}</td>
-            <td>
-              <div class="bar-wrap">
-                <div class="bar bar-red" style="width: {{ (count / max_err * 100)|int }}%"></div>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </table>
-      {% else %}
-        <p class="empty">No HTTP errors found in this log file.</p>
-      {% endif %}
+    <!-- Charts -->
+    <div class="charts-grid">
+      <div class="chart-box">
+        <h3>HTTP error breakdown</h3>
+        <p>Error code frequency distribution</p>
+        {% if errors %}
+          <canvas id="errorChart"></canvas>
+        {% else %}
+          <div class="empty">No errors found</div>
+        {% endif %}
+      </div>
+      <div class="chart-box">
+        <h3>Hourly traffic</h3>
+        <p>Requests per hour (24h)</p>
+        {% if traffic %}
+          <canvas id="trafficChart"></canvas>
+        {% else %}
+          <div class="empty">No traffic data found</div>
+        {% endif %}
+      </div>
     </div>
 
-    <!-- Hourly Traffic -->
-    <div class="card">
-      <h2>Busiest Traffic Hours</h2>
-      <p class="sub">Total requests per hour (24h format)</p>
-      {% if traffic %}
-        {% set max_traffic = traffic.values()|max %}
-        <table>
-          <tr><th>Hour</th><th>Requests</th><th>Load</th></tr>
-          {% for hour, count in traffic.items() %}
-          <tr>
-            <td><span class="badge badge-blue">{{ hour }}:00</span></td>
-            <td>{{ count }}</td>
-            <td>
-              <div class="bar-wrap">
-                <div class="bar" style="width: {{ (count / max_traffic * 100)|int }}%"></div>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </table>
-      {% else %}
-        <p class="empty">No traffic data found in this log file.</p>
-      {% endif %}
-    </div>
+    <!-- Tables -->
+    <div class="two-col">
 
+      <!-- Errors table -->
+      <div class="card">
+        <h2>Error frequencies</h2>
+        <p class="sub">Critical HTTP errors across all log lines</p>
+        {% if errors %}
+          {% set max_err = errors.values()|max %}
+          <table>
+            <tr><th>Code</th><th>Count</th><th>Share</th></tr>
+            {% for code, count in errors|dictsort(by='value', reverse=true) %}
+            <tr>
+              <td><span class="pill pill-red">HTTP {{ code }}</span></td>
+              <td>{{ count }}</td>
+              <td>
+                <div class="bar-wrap">
+                  <div class="bar bar-red" style="width:{{ (count / max_err * 100)|int }}%"></div>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </table>
+        {% else %}
+          <div class="empty">No HTTP errors found</div>
+        {% endif %}
+      </div>
+
+      <!-- Traffic table -->
+      <div class="card">
+        <h2>Busiest hours</h2>
+        <p class="sub">Total requests per hour (24h format)</p>
+        {% if traffic %}
+          {% set max_traffic = traffic.values()|max %}
+          <table>
+            <tr><th>Hour</th><th>Requests</th><th>Load</th></tr>
+            {% for hour, count in traffic.items() %}
+            <tr>
+              <td><span class="pill pill-blue">{{ hour }}:00</span></td>
+              <td>{{ count }}</td>
+              <td>
+                <div class="bar-wrap">
+                  <div class="bar bar-blue" style="width:{{ (count / max_traffic * 100)|int }}%"></div>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </table>
+        {% else %}
+          <div class="empty">No traffic data found</div>
+        {% endif %}
+      </div>
+
+    </div>
   </div>
+
+  <script>
+    const errorLabels = {{ errors.keys()|list|tojson }};
+    const errorValues = {{ errors.values()|list|tojson }};
+    const trafficLabels = {{ traffic.keys()|list|tojson }};
+    const trafficValues = {{ traffic.values()|list|tojson }};
+
+    const errorColors = [
+      '#ef4444','#f97316','#eab308','#a855f7','#ec4899','#14b8a6','#6366f1','#84cc16'
+    ];
+
+    if (errorLabels.length > 0) {
+      new Chart(document.getElementById('errorChart'), {
+        type: 'doughnut',
+        data: {
+          labels: errorLabels.map(l => 'HTTP ' + l),
+          datasets: [{
+            data: errorValues,
+            backgroundColor: errorColors.slice(0, errorLabels.length),
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 12 } }
+          }
+        }
+      });
+    }
+
+    if (trafficLabels.length > 0) {
+      const maxVal = Math.max(...trafficValues);
+      const barColors = trafficValues.map(v => {
+        const intensity = v / maxVal;
+        if (intensity > 0.75) return '#4f46e5';
+        if (intensity > 0.4)  return '#818cf8';
+        return '#c7d2fe';
+      });
+
+      new Chart(document.getElementById('trafficChart'), {
+        type: 'bar',
+        data: {
+          labels: trafficLabels.map(h => h + ':00'),
+          datasets: [{
+            label: 'Requests',
+            data: trafficValues,
+            backgroundColor: barColors,
+            borderRadius: 6,
+            borderSkipped: false
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: '#f3f4f6' },
+              ticks: { font: { size: 11 } }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 11 } }
+            }
+          }
+        }
+      });
+    }
+  </script>
 </body>
 </html>
