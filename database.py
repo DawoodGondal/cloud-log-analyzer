@@ -8,9 +8,17 @@ def get_connection():
     return psycopg2.connect(os.getenv('DATABASE_URL'))
 
 def init_db():
-    """Create tables if they don't exist."""
     conn = get_connection()
     cur = conn.cursor()
+
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
 
     cur.execute('''
         CREATE TABLE IF NOT EXISTS analysis_results (
@@ -40,15 +48,38 @@ def init_db():
     conn.commit()
     cur.close()
     conn.close()
-    print("Database initialized.")
 
-def save_result(filename, errors, traffic):
-    """Persist one analysis run to the database."""
+def register_user(username, password_hash):
     conn = get_connection()
     cur = conn.cursor()
+    try:
+        cur.execute(
+            'INSERT INTO users (username, password_hash) VALUES (%s, %s) RETURNING id',
+            (username, password_hash)
+        )
+        user_id = cur.fetchone()[0]
+        conn.commit()
+        return user_id
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
+        return None
+    finally:
+        cur.close()
+        conn.close()
 
+def get_user(username):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT id, username, password_hash FROM users WHERE username = %s', (username,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return row
+
+def save_result(filename, errors, traffic):
+    conn = get_connection()
+    cur = conn.cursor()
     total = sum(traffic.values()) if traffic else 0
-
     cur.execute('''
         INSERT INTO analysis_results
             (filename, error_404, error_500, error_403, error_400, error_502, error_503, total_requests)
@@ -64,7 +95,6 @@ def save_result(filename, errors, traffic):
         errors.get('503', 0),
         total
     ))
-
     result_id = cur.fetchone()[0]
     conn.commit()
     cur.close()
@@ -72,7 +102,6 @@ def save_result(filename, errors, traffic):
     return result_id
 
 def log_event(event, username=None, detail=None):
-    """Write an audit trail entry."""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
@@ -84,7 +113,6 @@ def log_event(event, username=None, detail=None):
     conn.close()
 
 def get_history():
-    """Fetch all past analysis runs."""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute('''
